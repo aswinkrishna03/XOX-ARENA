@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#000000">
+
+    <Button
+        android:id="@+id/btnMultiplayer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Multiplayer"
+        android:backgroundTint="#4CAF50"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btnVsBot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="VS Bot"
+        android:backgroundTint="#FF9800"
+        android:textColor="#FFFFFF" />
+</LinearLayout>

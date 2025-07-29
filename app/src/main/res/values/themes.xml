@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Base theme -->
+    <style name="Base.Theme.XOXARENA" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- You can customize colors here if needed -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    </style>
+
+    <!-- Your main theme -->
+    <style name="Theme.XOXARENA" parent="Base.Theme.XOXARENA" />
+</resources>
