@@ -19,4 +19,5 @@
 - Custom Vibration Feedback
 
 ## 🚀 How to Install
-1. Clone the repo:
+1. Clone the repo:git clone https://github.com/aswinkrishna03/xox-arena.git
+
