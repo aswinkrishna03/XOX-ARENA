@@ -1,145 +1,198 @@
 package com.example.xoxarena;
 
-import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
 import android.widget.Button;
-import android.widget.GridLayout;
-import android.widget.ImageButton;
-import android.widget.Toast;
-
+import android.widget.TextView;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-
-import java.util.Random;
 
 public class BotActivity extends AppCompatActivity {
 
     private Button[][] buttons = new Button[3][3];
+    private char[][] board = new char[3][3]; // 'X', 'O' or '\0' for empty
     private boolean playerTurn = true;
-    private String playerSymbol = "X";
-    private String botSymbol = "O";
-    private boolean gameActive = true;
-    private GridLayout gridLayout;
-    private ImageButton pauseBtn;
+    private char playerSymbol = 'X';
+    private char botSymbol = 'O';
+    private TextView textViewTurn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_bot);
 
-        gridLayout = findViewById(R.id.gridLayout);
-        pauseBtn = findViewById(R.id.pauseButton);
+        textViewTurn = findViewById(R.id.text_view_turn);
 
-
-        // Get intent symbol from ChooseSymbolActivity
         Intent intent = getIntent();
-        playerSymbol = intent.getStringExtra("playerSymbol");
-        botSymbol = playerSymbol.equals("X") ? "O" : "X";
-        playerTurn = playerSymbol.equals("X");
+        playerSymbol = intent.getStringExtra("playerSymbol").charAt(0);
+        botSymbol = (playerSymbol == 'X') ? 'O' : 'X';
 
-        setupGrid();
-        setupPauseButton();
-    }
+        textViewTurn.setText("Turn: " + playerSymbol);
 
-    private void setupGrid() {
-        int index = 0;
+        // Initialize board to empty
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+                board[i][j] = '\0';
+
+        // Setup buttons and listeners
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                Button btn = (Button) gridLayout.getChildAt(index++);
-                buttons[i][j] = btn;
-                final int row = i, col = j;
-                btn.setOnClickListener(v -> {
-                    if (!gameActive || !btn.getText().toString().equals("") || !playerTurn) return;
-                    btn.setText(playerSymbol);
-                    playerTurn = false;
-                    if (checkWin(playerSymbol)) {
-                        Toast.makeText(this, "You Win!", Toast.LENGTH_SHORT).show();
-                        gameActive = false;
-                    } else if (isBoardFull()) {
-                        Toast.makeText(this, "Draw!", Toast.LENGTH_SHORT).show();
-                        gameActive = false;
-                    } else {
-                        botMove();
-                    }
+                int resID = getResources().getIdentifier("button_" + i + j, "id", getPackageName());
+                buttons[i][j] = findViewById(resID);
+                final int row = i;
+                final int col = j;
+                buttons[i][j].setOnClickListener(view -> {
+                    if (board[row][col] != '\0' || !playerTurn) return;
+
+                    playerMove(row, col);
                 });
             }
         }
+
+        if (playerSymbol == 'O') {
+            playerTurn = false;
+            botMove();
+        }
+    }
+
+    private void playerMove(int row, int col) {
+        board[row][col] = playerSymbol;
+        buttons[row][col].setText(String.valueOf(playerSymbol));
+        textViewTurn.setText("Turn: " + botSymbol);
+
+        if (checkWin(playerSymbol)) {
+            showResult("You Win!");
+            return;
+        }
+        if (isBoardFull()) {
+            showResult("Draw!");
+            return;
+        }
+
+        playerTurn = false;
+        botMove();
     }
 
     private void botMove() {
-        if (!gameActive) return;
-
-        new Handler().postDelayed(() -> {
-            int row, col;
-            Random rand = new Random();
-            do {
-                row = rand.nextInt(3);
-                col = rand.nextInt(3);
-            } while (!buttons[row][col].getText().toString().equals(""));
-
-            buttons[row][col].setText(botSymbol);
-
-            if (checkWin(botSymbol)) {
-                Toast.makeText(this, "Bot Wins!", Toast.LENGTH_SHORT).show();
-                gameActive = false;
-            } else if (isBoardFull()) {
-                Toast.makeText(this, "Draw!", Toast.LENGTH_SHORT).show();
-                gameActive = false;
-            } else {
-                playerTurn = true;
-            }
-        }, 500);
-    }
-
-    private boolean checkWin(String symbol) {
-        for (int i = 0; i < 3; i++) {
-            if (buttons[i][0].getText().toString().equals(symbol) &&
-                    buttons[i][1].getText().toString().equals(symbol) &&
-                    buttons[i][2].getText().toString().equals(symbol)) return true;
-
-            if (buttons[0][i].getText().toString().equals(symbol) &&
-                    buttons[1][i].getText().toString().equals(symbol) &&
-                    buttons[2][i].getText().toString().equals(symbol)) return true;
+        int[] bestMove = findBestMove();
+        if (bestMove[0] == -1) {
+            showResult("Draw!");
+            return;
         }
 
-        return (buttons[0][0].getText().toString().equals(symbol) &&
-                buttons[1][1].getText().toString().equals(symbol) &&
-                buttons[2][2].getText().toString().equals(symbol)) ||
+        board[bestMove[0]][bestMove[1]] = botSymbol;
+        buttons[bestMove[0]][bestMove[1]].setText(String.valueOf(botSymbol));
+        textViewTurn.setText("Turn: " + playerSymbol);
 
-                (buttons[0][2].getText().toString().equals(symbol) &&
-                        buttons[1][1].getText().toString().equals(symbol) &&
-                        buttons[2][0].getText().toString().equals(symbol));
+        if (checkWin(botSymbol)) {
+            showResult("Bot Wins!");
+            return;
+        }
+        if (isBoardFull()) {
+            showResult("Draw!");
+            return;
+        }
+
+        playerTurn = true;
+    }
+
+    private boolean checkWin(char symbol) {
+        // rows and columns
+        for (int i = 0; i < 3; i++) {
+            if (board[i][0] == symbol && board[i][1] == symbol && board[i][2] == symbol) return true;
+            if (board[0][i] == symbol && board[1][i] == symbol && board[2][i] == symbol) return true;
+        }
+        // diagonals
+        if (board[0][0] == symbol && board[1][1] == symbol && board[2][2] == symbol) return true;
+        if (board[0][2] == symbol && board[1][1] == symbol && board[2][0] == symbol) return true;
+
+        return false;
     }
 
     private boolean isBoardFull() {
-        for (Button[] row : buttons) {
-            for (Button btn : row) {
-                if (btn.getText().toString().isEmpty()) {
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+                if (board[i][j] == '\0')
                     return false;
-                }
-            }
-        }
         return true;
     }
 
-    private void setupPauseButton() {
-        pauseBtn.setOnClickListener(view -> {
-            PauseDialog dialog = new PauseDialog(this,
-                    this::resetGame,
-                    this::finish);
-            dialog.show();
-        });
+    private void showResult(String message) {
+        new AlertDialog.Builder(this)
+                .setTitle(message)
+                .setMessage("Play again?")
+                .setPositiveButton("Yes", (dialog, which) -> resetGame())
+                .setNegativeButton("No", (dialog, which) -> finish())
+                .setCancelable(false)
+                .show();
     }
 
     private void resetGame() {
-        for (Button[] row : buttons) {
-            for (Button btn : row) {
-                btn.setText("");
-                btn.setEnabled(true);
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                board[i][j] = '\0';
+                buttons[i][j].setText("");
             }
         }
-        gameActive = true;
-        playerTurn = playerSymbol.equals("X");
+        playerTurn = (playerSymbol == 'X');
+        textViewTurn.setText("Turn: " + (playerTurn ? playerSymbol : botSymbol));
+
+        if (!playerTurn) botMove();
+    }
+
+    private int[] findBestMove() {
+        int bestScore = Integer.MIN_VALUE;
+        int[] move = {-1, -1};
+
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (board[i][j] == '\0') {
+                    board[i][j] = botSymbol;
+                    int score = minimax(0, false);
+                    board[i][j] = '\0';
+                    if (score > bestScore) {
+                        bestScore = score;
+                        move[0] = i;
+                        move[1] = j;
+                    }
+                }
+            }
+        }
+        return move;
+    }
+
+    private int minimax(int depth, boolean isMaximizing) {
+        if (checkWin(botSymbol)) return 10 - depth;
+        if (checkWin(playerSymbol)) return depth - 10;
+        if (isBoardFull()) return 0;
+
+        if (isMaximizing) {
+            int maxEval = Integer.MIN_VALUE;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (board[i][j] == '\0') {
+                        board[i][j] = botSymbol;
+                        int eval = minimax(depth + 1, false);
+                        board[i][j] = '\0';
+                        maxEval = Math.max(maxEval, eval);
+                    }
+                }
+            }
+            return maxEval;
+        } else {
+            int minEval = Integer.MAX_VALUE;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (board[i][j] == '\0') {
+                        board[i][j] = playerSymbol;
+                        int eval = minimax(depth + 1, true);
+                        board[i][j] = '\0';
+                        minEval = Math.min(minEval, eval);
+                    }
+                }
+            }
+            return minEval;
+        }
     }
 }

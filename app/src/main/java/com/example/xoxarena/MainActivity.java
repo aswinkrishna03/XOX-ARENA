@@ -1,22 +1,27 @@
 package com.example.xoxarena;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
 
     private Button[][] buttons = new Button[3][3];
-    private boolean playerTurn = true; // true = X, false = O
+    private char[][] board = new char[3][3]; // '\0' = empty, 'X' or 'O'
+    private boolean playerTurn = true; // true = player, false = bot
     private int roundCount;
+
     private TextView status;
     private Button resetButton, pauseButton;
 
     private String mode = "bot";    // default mode
-    private String playerSymbol = "X";
-    private String opponentSymbol = "O";
+    private char playerSymbol = 'X';
+    private char opponentSymbol = 'O';
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,114 +32,192 @@ public class MainActivity extends AppCompatActivity {
         resetButton = findViewById(R.id.resetButton);
         pauseButton = findViewById(R.id.pauseButton);
 
-        // Get intent extras
-        if (getIntent() != null) {
-            mode = getIntent().getStringExtra("mode");
-            playerSymbol = getIntent().getStringExtra("symbol");
-            if (playerSymbol != null && playerSymbol.equals("O")) {
-                opponentSymbol = "X";
-                playerTurn = false; // let bot or second player start if O
+        // Pause button shows confirmation dialog instead of closing immediately
+        pauseButton.setOnClickListener(view -> {
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Pause")
+                    .setMessage("Do you want to exit to mode selection?")
+                    .setPositiveButton("Exit", (dialog, which) -> {
+                        startActivity(new Intent(MainActivity.this, ModeSelectActivity.class));
+                        finish();
+                    })
+                    .setNegativeButton("Resume", (dialog, which) -> dialog.dismiss())
+                    .show();
+        });
+
+        // Get intent extras if any
+        Intent intent = getIntent();
+        if (intent != null) {
+            String modeExtra = intent.getStringExtra("mode");
+            String symbolExtra = intent.getStringExtra("symbol");
+
+            if (modeExtra != null) mode = modeExtra;
+            if (symbolExtra != null && symbolExtra.length() > 0) {
+                playerSymbol = symbolExtra.charAt(0);
+                opponentSymbol = (playerSymbol == 'X') ? 'O' : 'X';
+                playerTurn = (playerSymbol == 'X'); // X starts first
             }
         }
 
-        // Set status
         if (mode.equals("player")) {
             status.setText("Multiplayer Mode");
         } else {
             status.setText("VS Bot Mode");
         }
 
-        // Initialize buttons
+        // Initialize board and buttons
+        resetBoard();
+
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                String buttonID = "button" + i + j;
-                int resID = getResources().getIdentifier(buttonID, "id", getPackageName());
+                int resID = getResources().getIdentifier("button" + i + j, "id", getPackageName());
                 buttons[i][j] = findViewById(resID);
+                final int row = i;
+                final int col = j;
 
-                int finalI = i;
-                int finalJ = j;
                 buttons[i][j].setOnClickListener(view -> {
-                    if (!((Button) view).getText().toString().equals("")) return;
+                    if (!buttons[row][col].getText().toString().equals("")) return;
+                    if (mode.equals("bot") && !playerTurn) return; // wait for bot
 
-                    ((Button) view).setText(playerTurn ? playerSymbol : opponentSymbol);
-                    ((Button) view).setTextColor(getResources().getColor(
+                    char currentSymbol = playerTurn ? playerSymbol : opponentSymbol;
+
+                    buttons[row][col].setText(String.valueOf(currentSymbol));
+                    buttons[row][col].setTextColor(ContextCompat.getColor(this,
                             playerTurn ? android.R.color.holo_red_light : android.R.color.white));
+                    board[row][col] = currentSymbol;
+
                     roundCount++;
 
-                    if (checkWin()) {
-                        status.setText((playerTurn ? playerSymbol : opponentSymbol) + " Wins!");
+                    if (checkWin(currentSymbol)) {
+                        status.setText(currentSymbol + " Wins!");
                         disableAllButtons();
-                    } else if (roundCount == 9) {
+                        return;
+                    }
+
+                    if (roundCount == 9) {
                         status.setText("Draw!");
-                    } else {
-                        playerTurn = !playerTurn;
-                        if (mode.equals("bot") && !playerTurn) {
-                            botMove();
-                        }
+                        return;
+                    }
+
+                    playerTurn = !playerTurn;
+
+                    if (mode.equals("bot") && !playerTurn) {
+                        botMove();
                     }
                 });
             }
         }
 
         resetButton.setOnClickListener(view -> resetGame());
-        pauseButton.setOnClickListener(view -> status.setText("Game Paused"));
 
-        // Bot auto-move if player chose O
+        // Bot starts immediately if player is 'O'
         if (mode.equals("bot") && !playerTurn) {
             botMove();
         }
     }
 
     private void botMove() {
-        // Very simple bot: first empty cell
+        int[] bestMove = findBestMove();
+        if (bestMove[0] == -1) {
+            status.setText("Draw!");
+            return;
+        }
+
+        buttons[bestMove[0]][bestMove[1]].setText(String.valueOf(opponentSymbol));
+        buttons[bestMove[0]][bestMove[1]].setTextColor(ContextCompat.getColor(this, android.R.color.white));
+        board[bestMove[0]][bestMove[1]] = opponentSymbol;
+        roundCount++;
+
+        if (checkWin(opponentSymbol)) {
+            status.setText("Bot Wins!");
+            disableAllButtons();
+            return;
+        }
+
+        if (roundCount == 9) {
+            status.setText("Draw!");
+            return;
+        }
+
+        playerTurn = true;
+    }
+
+    private int[] findBestMove() {
+        int bestScore = Integer.MIN_VALUE;
+        int[] move = {-1, -1};
+
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                if (buttons[i][j].getText().toString().equals("")) {
-                    buttons[i][j].setText(opponentSymbol);
-                    buttons[i][j].setTextColor(getResources().getColor(android.R.color.white));
-                    roundCount++;
-                    if (checkWin()) {
-                        status.setText("Bot Wins!");
-                        disableAllButtons();
-                    } else if (roundCount == 9) {
-                        status.setText("Draw!");
-                    } else {
-                        playerTurn = true;
+                if (board[i][j] == '\0') {
+                    board[i][j] = opponentSymbol;
+                    int score = minimax(0, false);
+                    board[i][j] = '\0';
+                    if (score > bestScore) {
+                        bestScore = score;
+                        move[0] = i;
+                        move[1] = j;
                     }
-                    return;
                 }
             }
         }
+        return move;
     }
 
-    private boolean checkWin() {
-        String[][] field = new String[3][3];
+    private int minimax(int depth, boolean isMaximizing) {
+        if (checkWin(opponentSymbol)) return 10 - depth;
+        if (checkWin(playerSymbol)) return depth - 10;
+        if (isBoardFull()) return 0;
 
-        for (int i = 0; i < 3; i++)
-            for (int j = 0; j < 3; j++)
-                field[i][j] = buttons[i][j].getText().toString();
-
-        // Rows & Columns
-        for (int i = 0; i < 3; i++) {
-            if (!field[i][0].equals("") &&
-                    field[i][0].equals(field[i][1]) &&
-                    field[i][0].equals(field[i][2])) return true;
-
-            if (!field[0][i].equals("") &&
-                    field[0][i].equals(field[1][i]) &&
-                    field[0][i].equals(field[2][i])) return true;
+        if (isMaximizing) {
+            int best = Integer.MIN_VALUE;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (board[i][j] == '\0') {
+                        board[i][j] = opponentSymbol;
+                        best = Math.max(best, minimax(depth + 1, false));
+                        board[i][j] = '\0';
+                    }
+                }
+            }
+            return best;
+        } else {
+            int best = Integer.MAX_VALUE;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (board[i][j] == '\0') {
+                        board[i][j] = playerSymbol;
+                        best = Math.min(best, minimax(depth + 1, true));
+                        board[i][j] = '\0';
+                    }
+                }
+            }
+            return best;
         }
+    }
 
-        // Diagonals
-        if (!field[0][0].equals("") &&
-                field[0][0].equals(field[1][1]) &&
-                field[0][0].equals(field[2][2])) return true;
-
-        if (!field[0][2].equals("") &&
-                field[0][2].equals(field[1][1]) &&
-                field[0][2].equals(field[2][0])) return true;
+    private boolean checkWin(char symbol) {
+        // rows and columns
+        for (int i = 0; i < 3; i++) {
+            if (board[i][0] == symbol && board[i][1] == symbol && board[i][2] == symbol)
+                return true;
+            if (board[0][i] == symbol && board[1][i] == symbol && board[2][i] == symbol)
+                return true;
+        }
+        // diagonals
+        if (board[0][0] == symbol && board[1][1] == symbol && board[2][2] == symbol)
+            return true;
+        if (board[0][2] == symbol && board[1][1] == symbol && board[2][0] == symbol)
+            return true;
 
         return false;
+    }
+
+    private boolean isBoardFull() {
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+                if (board[i][j] == '\0')
+                    return false;
+        return true;
     }
 
     private void disableAllButtons() {
@@ -143,16 +226,24 @@ public class MainActivity extends AppCompatActivity {
                 buttons[i][j].setEnabled(false);
     }
 
-    private void resetGame() {
+    private void resetBoard() {
         roundCount = 0;
-        playerTurn = playerSymbol.equals("X");
+        playerTurn = (playerSymbol == 'X');
         status.setText(mode.equals("player") ? "Multiplayer Mode" : "VS Bot Mode");
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                buttons[i][j].setText("");
-                buttons[i][j].setEnabled(true);
+                board[i][j] = '\0';
+                if (buttons[i][j] != null) {
+                    buttons[i][j].setText("");
+                    buttons[i][j].setEnabled(true);
+                }
             }
+        }
+    }
+
+    private void resetGame() {
+        resetBoard();
 
         if (mode.equals("bot") && !playerTurn) {
             botMove();
