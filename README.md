@@ -17,6 +17,10 @@
 - XML Layouts
 - Intent Navigation
 - Custom Vibration Feedback
+## 📦 Download APK
+
+👉 [Click here to download XOX Arena](https://drive.google.com/file/d/1fc3wgGMQoNf2oHjjHL6Tjlo_8mUe6Aec/view?usp=drivesdk)  
+*(Hosted on Google Drive)*
 
 ## 🚀 How to Install
 1. Clone the repo:git clone https://github.com/aswinkrishna03/xox-arena.git
