@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 
+import com.google.firebase.analytics.FirebaseAnalytics;
+
 public class MainActivity extends AppCompatActivity {
 
     private Button[][] buttons = new Button[3][3];
@@ -23,6 +25,8 @@ public class MainActivity extends AppCompatActivity {
     private char playerSymbol = 'X';
     private char opponentSymbol = 'O';
 
+    private FirebaseAnalytics mFirebaseAnalytics;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,6 +35,15 @@ public class MainActivity extends AppCompatActivity {
         status = findViewById(R.id.statusText);
         resetButton = findViewById(R.id.resetButton);
         pauseButton = findViewById(R.id.pauseButton);
+
+        // Initialize Firebase Analytics
+        mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
+
+        // Track game start
+        Bundle startBundle = new Bundle();
+        startBundle.putString("mode", mode);
+        startBundle.putString("player_symbol", String.valueOf(playerSymbol));
+        mFirebaseAnalytics.logEvent("game_start", startBundle);
 
         // Pause button shows confirmation dialog instead of closing immediately
         pauseButton.setOnClickListener(view -> {
@@ -86,16 +99,38 @@ public class MainActivity extends AppCompatActivity {
                             playerTurn ? android.R.color.holo_red_light : android.R.color.white));
                     board[row][col] = currentSymbol;
 
+                    // Track player move
+                    Bundle moveBundle = new Bundle();
+                    moveBundle.putInt("row", row);
+                    moveBundle.putInt("col", col);
+                    moveBundle.putString("symbol", String.valueOf(currentSymbol));
+                    moveBundle.putString("mode", mode);
+                    mFirebaseAnalytics.logEvent("player_move", moveBundle);
+
                     roundCount++;
 
                     if (checkWin(currentSymbol)) {
                         status.setText(currentSymbol + " Wins!");
                         disableAllButtons();
+
+                        // Track result
+                        Bundle resultBundle = new Bundle();
+                        resultBundle.putString("result", currentSymbol + " Wins!");
+                        resultBundle.putString("mode", mode);
+                        mFirebaseAnalytics.logEvent("game_result", resultBundle);
+
                         return;
                     }
 
                     if (roundCount == 9) {
                         status.setText("Draw!");
+
+                        // Track result
+                        Bundle drawBundle = new Bundle();
+                        drawBundle.putString("result", "Draw!");
+                        drawBundle.putString("mode", mode);
+                        mFirebaseAnalytics.logEvent("game_result", drawBundle);
+
                         return;
                     }
 
@@ -126,16 +161,39 @@ public class MainActivity extends AppCompatActivity {
         buttons[bestMove[0]][bestMove[1]].setText(String.valueOf(opponentSymbol));
         buttons[bestMove[0]][bestMove[1]].setTextColor(ContextCompat.getColor(this, android.R.color.white));
         board[bestMove[0]][bestMove[1]] = opponentSymbol;
+
+        // Track bot move
+        Bundle botMoveBundle = new Bundle();
+        botMoveBundle.putInt("row", bestMove[0]);
+        botMoveBundle.putInt("col", bestMove[1]);
+        botMoveBundle.putString("symbol", String.valueOf(opponentSymbol));
+        botMoveBundle.putString("mode", mode);
+        mFirebaseAnalytics.logEvent("bot_move", botMoveBundle);
+
         roundCount++;
 
         if (checkWin(opponentSymbol)) {
             status.setText("Bot Wins!");
             disableAllButtons();
+
+            // Track result
+            Bundle resultBundle = new Bundle();
+            resultBundle.putString("result", "Bot Wins!");
+            resultBundle.putString("mode", mode);
+            mFirebaseAnalytics.logEvent("game_result", resultBundle);
+
             return;
         }
 
         if (roundCount == 9) {
             status.setText("Draw!");
+
+            // Track result
+            Bundle drawBundle = new Bundle();
+            drawBundle.putString("result", "Draw!");
+            drawBundle.putString("mode", mode);
+            mFirebaseAnalytics.logEvent("game_result", drawBundle);
+
             return;
         }
 
@@ -244,6 +302,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void resetGame() {
         resetBoard();
+
+        // Track reset
+        Bundle resetBundle = new Bundle();
+        resetBundle.putString("mode", mode);
+        mFirebaseAnalytics.logEvent("game_reset", resetBundle);
 
         if (mode.equals("bot") && !playerTurn) {
             botMove();
