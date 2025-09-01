@@ -19,7 +19,7 @@
 - Custom Vibration Feedback
 ## 📦 Download APK
 
-👉 [Click here to download XOX Arena](https://drive.google.com/file/d/1fc3wgGMQoNf2oHjjHL6Tjlo_8mUe6Aec/view?usp=drivesdk)  
+👉 [Click here to download XOX Arena](https://drive.google.com/drive/folders/1NU0dNfvgp0RelJ-fFHLwZtduN1T6TRM4)  
 *(Hosted on Google Drive)*
 
 ## 🚀 How to Install
